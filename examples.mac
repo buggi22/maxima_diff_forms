@@ -1,0 +1,33 @@
+"example a" /* k = 1, n = 3, Choose(n,k) = 3 */;
+omega_a: lambda([x,y,z],[y,x,0]);
+phi_a: lambda([t],[p_x(t),p_y(t),p_z(t)]);
+bounds_a: [[0,1]];
+
+"example b" /* k = 1, n = 2, Choose(n,k) = 2 */;
+omega_b1: lambda([x,y],[0,x]);
+omega_b2: lambda([x,y],[-y,0]);
+phi_b: lambda([t], [a*cos(t), b*sin(t)]);
+bounds_b: [[0,2*%pi]];
+
+"example c" /* k = 3, n = 3, Choose(n,k) = 1 */;
+omega_c: lambda([x,y,z],[1]);
+phi_c: lambda([r,th,ph], [r*sin(th)*cos(ph), r*sin(th)*sin(ph), r*cos(th)]);
+bounds_c: [[0,r0],[0,%pi],[0,2*%pi]];
+
+"example d" /* k = 2, n = 4, Choose(n,k) = 6 */;
+omega_d: lambda([x,y,z,w],[x,y,z,w,x*y,z*w]);
+phi_d: lambda([u,v], [u,v,u^2,u*v]);
+bounds_d: [[0,1], [0,1]];
+
+"example e" ;
+omega_e: lambda([x,y,z], [20*x^2*y*z,30*x*y^3*z,50*x*y*z^5]);
+
+"example f" ;
+omega_f: lambda([x,y], [0,x^3]);
+phi_f: lambda([r, th], [r*cos(th), r*sin(th)]);
+bounds_f: [[a,b],[0,2*%pi]];
+
+omega_g: lambda([x], [x^2]);
+diffFormExplicit(omega_g, 0, false);
+phi_g: lambda([t], [t]);
+bounds_g: [[a,b]];

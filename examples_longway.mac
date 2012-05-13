@@ -1,0 +1,33 @@
+load("examples.mac");
+
+integrand_a: 
+     apply(omega_a, phi_a(t))[1]*determinant(jacobian([phi_a(t)[1]], [t]))
+   + apply(omega_a, phi_a(t))[2]*determinant(jacobian([phi_a(t)[2]], [t]))
+   + apply(omega_a, phi_a(t))[3]*determinant(jacobian([phi_a(t)[3]], [t]));
+value_a: integrate(integrand_a, t, bounds_a[1][1], bounds_a[1][2]);
+
+integrand_b1: 
+     apply(omega_b1, phi_b(t))[1]*determinant(jacobian([phi_b(t)[1]], [t]))
+   + apply(omega_b1, phi_b(t))[2]*determinant(jacobian([phi_b(t)[2]], [t]));
+integrand_b2: 
+     apply(omega_b2, phi_b(t))[1]*determinant(jacobian([phi_b(t)[1]], [t]))
+   + apply(omega_b2, phi_b(t))[2]*determinant(jacobian([phi_b(t)[2]], [t]));
+value_b1: integrate(integrand_b1, t, bounds_b[1][1], bounds_b[1][2]);
+value_b2: integrate(integrand_b2, t, bounds_b[1][1], bounds_b[1][2]);
+
+integrand_c: 
+     apply(omega_c, phi_c(r,th,ph))[1]*determinant(jacobian(phi_c(r,th,ph), [r,th,ph]));
+value_c: integrate(integrate(integrate(integrand_c, r, bounds_c[1][1], bounds_c[1][2]), th, bounds_c[2][1], bounds_c[2][2]), ph, bounds_c[3][1], bounds_c[3][2]);
+
+integrand_d: 
+ block([vec],
+   vec : phi_d(u,v),
+     apply(omega_d, vec)[1]*determinant(jacobian([vec[1],vec[2]], [u,v]))
+   + apply(omega_d, vec)[2]*determinant(jacobian([vec[1],vec[3]], [u,v]))
+   + apply(omega_d, vec)[3]*determinant(jacobian([vec[1],vec[4]], [u,v]))
+   + apply(omega_d, vec)[4]*determinant(jacobian([vec[2],vec[3]], [u,v]))
+   + apply(omega_d, vec)[5]*determinant(jacobian([vec[2],vec[4]], [u,v]))
+   + apply(omega_d, vec)[6]*determinant(jacobian([vec[3],vec[4]], [u,v]))
+ );
+value_d: integrate(integrate(integrand_d, u, bounds_d[1][1], bounds_d[1][2]), v, bounds_d[2][1], bounds_d[2][2]);
+

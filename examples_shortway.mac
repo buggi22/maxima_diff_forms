@@ -1,0 +1,34 @@
+load("examples.mac");
+load("diffForm.mac");
+
+/* display2d: false$ */
+
+integrateDiffForm(lambda([x,y,z], [x*y*z]), lambda([], [2,3,5]), [1]);
+integrateDiffForm(omega_a, phi_a, bounds_a);
+integrateDiffForm(omega_b1, phi_b, bounds_b);
+integrateDiffForm(omega_b2, phi_b, bounds_b);
+integrateDiffForm(omega_c, phi_c, bounds_c);
+integrateDiffForm(omega_d, phi_d, bounds_d);
+
+diffFormExplicit(omega_e, 1, false);
+diffFormExplicit(omega_e, 2, false);
+
+exteriorDerivative(omega_e, 1);
+exteriorDerivative(omega_e, 2);
+exteriorDerivative(exteriorDerivative(omega_e, 1), 2);
+
+boundary(phi_c, bounds_c);
+boundary(lambda([x,y,z], [x,y,z]), bounds_c);
+boundary(lambda([t], [t]), [[0,1]]);
+
+value_f1: integrateDiffForm(exteriorDerivative(omega_f, 1), phi_f, bounds_f);
+value_f2: integrateDiffFormCompound(omega_f, boundary(phi_f, bounds_f));
+ratsimp(value_f1 - value_f2);
+
+boundary_g: boundary(phi_g, bounds_g);
+d_omega_g: exteriorDerivative(omega_g, 0);
+diffFormExplicit(d_omega_g, 1, false);
+value_g1: integrateDiffForm(d_omega_g, phi_g, bounds_g);
+value_g2: integrateDiffFormCompound(omega_g, boundary_g);
+ratsimp(value_g1 - value_g2);
+

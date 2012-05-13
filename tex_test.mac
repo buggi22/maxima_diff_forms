@@ -1,0 +1,5 @@
+load("examples.mac")$
+load("diffForm.mac")$
+
+integrateDiffForm(omega_c, phi_c, bounds_c)$
+tex(%, false);
