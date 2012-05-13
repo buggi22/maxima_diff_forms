@@ -1,0 +1,248 @@
+/* execute via: maxima-online.org */ "";
+
+/* integrating a k-form in n variables over a k-surface embedded in R^n.  The k-form omega can be represented as a function from R^n to R^(Choose(n,k)).  The k-surface is a function from I^k to R^n.  (I^k is any rectilinear domain in R^k) */ "=========";
+
+/* more info available at: http://www.math.purdue.edu/~dvb/preprints/diffforms.pdf -- interesting stuff about certain integrals that can't be expressed as differential forms (eg, arclength or surface area integrals), but can be expressed in terms of metric tensors */ "";
+
+"example a" /* k = 1, n = 3, Choose(n,k) = 3 */;
+omega_a: lambda([x,y,z],[y,x,0]);
+phi_a: lambda([t],[p_x(t),p_y(t),p_z(t)]);
+bounds_a: [[0,1]];
+integrand_a: 
+     apply(omega_a, phi_a(t))[1]*determinant(jacobian([phi_a(t)[1]], [t]))
+   + apply(omega_a, phi_a(t))[2]*determinant(jacobian([phi_a(t)[2]], [t]))
+   + apply(omega_a, phi_a(t))[3]*determinant(jacobian([phi_a(t)[3]], [t]));
+value_a: integrate(integrand_a, t, bounds_a[1][1], bounds_a[1][2]);
+
+"example b" /* k = 1, n = 2, Choose(n,k) = 2 */;
+omega_b1: lambda([x,y],[0,x]);
+omega_b2: lambda([x,y],[-y,0]);
+phi_b: lambda([t], [a*cos(t), b*sin(t)]);
+bounds_b: [[0,2*%pi]];
+integrand_b1: 
+     apply(omega_b1, phi_b(t))[1]*determinant(jacobian([phi_b(t)[1]], [t]))
+   + apply(omega_b1, phi_b(t))[2]*determinant(jacobian([phi_b(t)[2]], [t]));
+integrand_b2: 
+     apply(omega_b2, phi_b(t))[1]*determinant(jacobian([phi_b(t)[1]], [t]))
+   + apply(omega_b2, phi_b(t))[2]*determinant(jacobian([phi_b(t)[2]], [t]));
+value_b1: integrate(integrand_b1, t, bounds_b[1][1], bounds_b[1][2]);
+value_b2: integrate(integrand_b2, t, bounds_b[1][1], bounds_b[1][2]);
+
+"example c" /* k = 3, n = 3, Choose(n,k) = 1 */;
+omega_c: lambda([x,y,z],[1]);
+phi_c: lambda([r,th,ph], [r*sin(th)*cos(ph), r*sin(th)*sin(ph), r*cos(th)]);
+bounds_c: [[0,r0],[0,%pi],[0,2*%pi]];
+integrand_c: 
+     apply(omega_c, phi_c(r,th,ph))[1]*determinant(jacobian(phi_c(r,th,ph), [r,th,ph]));
+value_c: integrate(integrate(integrate(integrand_c, r, bounds_c[1][1], bounds_c[1][2]), th, bounds_c[2][1], bounds_c[2][2]), ph, bounds_c[3][1], bounds_c[3][2]);
+
+"example d" /* k = 2, n = 4, Choose(n,k) = 6 */;
+omega_d: lambda([x,y,z,w],[x,y,z,w,x*y,z*w]);
+phi_d: lambda([u,v], [u,v,u^2,u*v]);
+bounds_d: [[0,1], [0,1]];
+integrand_d: 
+ block([vec],
+   vec : phi_d(u,v),
+     apply(omega_d, vec)[1]*determinant(jacobian([vec[1],vec[2]], [u,v]))
+   + apply(omega_d, vec)[2]*determinant(jacobian([vec[1],vec[3]], [u,v]))
+   + apply(omega_d, vec)[3]*determinant(jacobian([vec[1],vec[4]], [u,v]))
+   + apply(omega_d, vec)[4]*determinant(jacobian([vec[2],vec[3]], [u,v]))
+   + apply(omega_d, vec)[5]*determinant(jacobian([vec[2],vec[4]], [u,v]))
+   + apply(omega_d, vec)[6]*determinant(jacobian([vec[3],vec[4]], [u,v]))
+ );
+value_d: integrate(integrate(integrand_d, u, bounds_d[1][1], bounds_d[1][2]), v, bounds_d[2][1], bounds_d[2][2]);
+
+subseqs_helper(prefix, seq, n) := block([next_seq, seqs_with, seqs_without, prefixer],
+    if n < 0 then return([]),
+    if n = 0 then return([prefix]),
+    if length(seq) = 0 then return([]),
+    next_seq: rest(seq),
+    prefixer: lambda([x], append(prefix, x)),
+    seqs_with: subseqs_helper(append(prefix,[seq[1]]), next_seq, n-1),
+    seqs_without: subseqs_helper(prefix, next_seq, n),
+    append(seqs_with, seqs_without)
+);
+
+subseqs(seq, n) := subseqs_helper([], seq, n);
+
+sgn(x) := if (x < 0) then -1 else 1;
+
+integrateDiffForm(omega, phi, bounds) := block(
+    [omega_input, omega_output, phi_input, phi_output,
+        k, n, combos, m1, m2, summands, integrand, bounds_with_vars, value],
+    omega_input: part(omega,1),
+    omega_output: part(omega,2),
+    phi_input: part(phi,1),
+    phi_output: part(phi,2),
+    k: length(phi_input),
+    n: length(omega_input),
+    if k = 0 then
+        return( sgn(bounds[1]) * apply(omega,phi())[1] ),
+    combos: subseqs(phi_output, k),
+    m1: map(lambda([funcs],determinant(jacobian(funcs, phi_input))), combos),
+    m2: apply(omega, phi_output),
+    summands: map("*", m1, m2),
+    integrand: apply("+", summands),
+    value: integrand,
+    bounds_with_vars: makelist([phi_input[i], bounds[i][1], bounds[i][2]],
+        i, 1, length(bounds)),
+    for b in bounds_with_vars do 
+        (value: integrate(value, b[1], b[2], b[3])),
+    value
+);
+
+integrateDiffFormCompound(omega, phis) := block(
+    [terms],
+    terms: map(lambda([p], integrateDiffForm(omega, p[1], p[2])), phis),
+    apply("+", terms)
+);
+
+boundary_helper(phi, bounds, i, positivelyOriented) := block(
+    [phi_input, new_phi_input, new_phi_params, fixed_bound, new_bounds, new_phi_output, new_phi],
+    fixed_bound: if positivelyOriented then bounds[i][2] else bounds[i][1],
+    phi_input: part(phi, 1),
+    new_phi_input: [],
+    new_phi_params: [],
+    new_bounds: [],
+    for j in makelist(i,i,1,length(bounds)) do (
+        if i = j then (
+            new_phi_input: append(new_phi_input, [fixed_bound])
+        )
+        else (
+            new_bounds: append(new_bounds, [bounds[j]]),
+            new_phi_params: append(new_phi_params, [phi_input[j]]),
+            new_phi_input: append(new_phi_input, [phi_input[j]])
+        )
+    ),
+    /*display(new_bounds, new_phi_params, new_phi_input),*/
+    if length(bounds) = 1 then
+        new_bounds: (if positivelyOriented then [1] else [-1])
+    else
+        if not(positivelyOriented) then new_bounds[1]: reverse(new_bounds[1]),
+    new_phi_output: apply(phi, new_phi_input),
+    new_phi: buildq([new_phi_params, new_phi_output], lambda(new_phi_params, new_phi_output)), 
+    [new_phi, new_bounds]
+);
+
+boundary(phi, bounds) := block(
+    [new_manifolds_pos, new_manifolds_neg],
+    new_manifolds_pos: makelist(boundary_helper(phi, bounds, i, true),  i, 1, length(bounds)),
+    new_manifolds_neg: makelist(boundary_helper(phi, bounds, i, false), i, 1, length(bounds)),
+    append(new_manifolds_pos, new_manifolds_neg)
+);
+
+boundaryCompound(phis) := flatten( map(lambda([p], boundary(p[1], p[2]), phis) ) );
+
+normalizeTerm(t,n) := block(
+    [term, ds, k, combos, matches, sortds],
+    term: t[1],
+    ds: t[2],
+    k: length(ds),
+
+    if some(lambda([x], x = ds[1]), rest(ds)) then
+        return([]),
+
+    combos: subseqs(makelist(i,i,1,n), k),
+    sortds: sort(ds),
+    matches: sublist_indices(combos, lambda([x], x = sortds)),
+    dIndex: if length(matches) = 0 then unknown else matches[1],
+
+    if evenp(length(sublist(rest(ds), lambda([x], x < ds[1])))) then
+        return([term, dIndex, sortds])
+    else
+        return([-term, dIndex, sortds])
+);
+
+exteriorDerivative(omega, k) := block(
+    [n, explicit, omega_input, newExplicit, newCombos, newOutput],
+    explicit: diffFormExplicit(omega, k, true),
+    omega_input: part(omega, 1),
+    n: length(omega_input),
+    newCombos: subseqs(makelist(i,i,1,n), k+1),
+    newExplicit: apply(append, makelist(
+        makelist(
+            [diff(explicit[j][1], omega_input[i]), append([i], explicit[j][2])],
+            i, 1, n
+        ),
+        j, 1, length(explicit)
+    )),
+    /* disp(newExplicit), */
+    newExplicit: map(lambda([t], normalizeTerm(t, n)), newExplicit),
+    /* disp(newExplicit), */
+    newExplicit: sublist(newExplicit, lambda([t], length(t) > 0)),
+    /* disp(newExplicit), */
+    newOutput: makelist(apply("+", map(lambda([x], x[1]), sublist(newExplicit, lambda([x], x[2] = i)))),
+        i, 1, length(newCombos)),
+    buildq([omega_input, newOutput], lambda(omega_input, newOutput))
+);
+
+vectorFieldDiffForm1InR3(f) := f /* R^3 -> R^3 */;
+vectorFieldDiffForm2InR3(f) := lambda([x,y,z], [f(x,y,z)[3] /*dxdy*/, -f(x,y,z)[2] /*dxdz*/, f(x,y,z)[1] /*dydz*/]);
+scalarDiffForm3InR3(f) := lambda([x,y,z], [f(x,y,z)]) /* R^3 -> R^1 */;
+
+vectorFieldLineIntegralInR3(f, phi, bounds) := integrateDiffForm(vectorFieldDiffForm1InR3(f), phi, bounds);
+vectorFieldSurfaceIntegralInR3(f, phi, bounds) := integrateDiffForm(vectorFieldDiffForm2InR3(f), phi, bounds);
+scalarVolumeIntegralInR3(f, phi, bounds) := integrateDiffForm(scalarDiffForm3InR3(f), phi, bounds);
+
+integrateDiffForm(lambda([x,y,z], [x*y*z]), lambda([], [2,3,5]), [1]);
+integrateDiffForm(omega_a, phi_a, bounds_a);
+integrateDiffForm(omega_b1, phi_b, bounds_b);
+integrateDiffForm(omega_b2, phi_b, bounds_b);
+integrateDiffForm(omega_c, phi_c, bounds_c);
+integrateDiffForm(omega_d, phi_d, bounds_d);
+
+diffFormExplicit(omega, k, useIntegers) := block(
+    [omega_input, omega_output, n, ds, dcombolists, dcombos, terms],
+    omega_input: part(omega, 1),
+    omega_output: part(omega, 2),
+    n: length(omega_input),
+    ds: if useIntegers then
+           makelist(i, i, 1, length(omega_input))
+        else
+           map(lambda([x], concat('d, x)), omega_input),
+    dcombolists: subseqs(ds, k),
+    map(lambda([a,b], [a,b]), omega_output, dcombolists)
+);
+
+omega_e: lambda([x,y,z], [20*x^2*y*z,30*x*y^3*z,50*x*y*z^5]);
+
+diffFormExplicit(omega_e, 1, false);
+diffFormExplicit(omega_e, 2, false);
+
+exteriorDerivative(omega_e, 1);
+exteriorDerivative(omega_e, 2);
+exteriorDerivative(exteriorDerivative(omega_e, 1), 2);
+
+boundary(phi_c, bounds_c);
+boundary(lambda([x,y,z], [x,y,z]), bounds_c);
+boundary(lambda([t], [t]), [[0,1]]);
+
+omega_f: lambda([x,y], [0,x^3]);
+phi_f: lambda([r, th], [r*cos(th), r*sin(th)]);
+bounds_f: [[a,b],[0,2*%pi]];
+
+value_f1: integrateDiffForm(exteriorDerivative(omega_f, 1), phi_f, bounds_f);
+value_f2: integrateDiffFormCompound(omega_f, boundary(phi_f, bounds_f));
+ratsimp(value_f1 - value_f2);
+
+omega_g: lambda([x], [x^2]);
+diffFormExplicit(omega_g, 0, false);
+phi_g: lambda([t], [t]);
+bounds_g: [[a,b]];
+boundary_g: boundary(phi_g, bounds_g);
+d_omega_g: exteriorDerivative(omega_g, 0);
+diffFormExplicit(d_omega_g, 1, false);
+value_g1: integrateDiffForm(d_omega_g, phi_g, bounds_g);
+value_g2: integrateDiffFormCompound(omega_g, boundary_g);
+ratsimp(value_g1 - value_g2);
+
+/*
+TODO: 
+  - internal storage of k-forms should include degree k to remove potential ambiguity (in R^n, for instance, k-forms and (n-k)-forms have the same number of components)
+     - ie, store k-form in R^n as the pair [k, lambda([x1,...,xn], [...])]
+  - internal storage of k-manifolds should be a list of pairs [phi, bounds] (??)
+  - let the user specify k-forms as: diffForm([x,y,z], x . [dx,dy] + z^2 . [dy,dz] + y^3 . [dx,dz]) --> [2, lambda([x,y,z], [x, y^3, z^2])]
+  - allow shortcut for specifying simple k-manifolds of the following form: phi = identity function R^k -> R^k, bounds:[[a1,b1],...,[ak,bk]]
+  - remove lambda's from phi's and omega's (ie, store them as parameter/output pairs, rather than as anonymous functions) (???)
+
+*/ "";
