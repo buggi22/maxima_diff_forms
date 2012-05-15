@@ -1,0 +1,46 @@
+load("diffForm.mac")$
+infix("##", 101, 101)$
+
+diffForm(vars, expr) := block(
+    [n,k,terms,extractor],
+    n: length(vars),
+    if op(expr) = "##" then
+        terms: [args(expr)]
+    else if op(expr) = "+" then (
+        if every(lambda([x], op(x) = "##"), args(expr)) then
+            terms: map(args, args(expr))
+        else
+            return(unknown)
+    )
+    else
+        return(unknown),
+    /*
+    display(terms),
+    */
+    extractor: buildq(
+        [vars: vars, t: ?gensym(), x: ?gensym(), z: ?gensym()],
+        lambda([t], [
+            t[1],
+            map( lambda([x],
+                block(
+                    [matches: sublist_indices(vars, lambda([z], z = x))],
+                    if length(matches) = 0 then unknown else matches[1]
+                )
+            ), t[2])
+        ] )
+    ),
+    terms: map(extractor, terms),
+    /*
+    display(terms),
+    */
+    diffFormFromExplicit(vars,terms)
+);
+
+tests: [
+    diffForm([x,y,z], 2*x ## []),
+    diffForm([x,y,z], 2*x ## [z]),
+    diffForm([x,y,z], 2*x ## [x,z]),
+    diffForm([x,y,z], 30*x*z^2 ## [x,y,z] + y ## [x,y,z]),
+    diffForm([x,y,z], 30*x*z^2 ## [x,y] + y ## [y,z] + z ## [x,z] + z^2 ## [z,y]),
+    diffForm([x,y,z,w], 2*x ## [x,y] + 2*z ## [z,w])
+];

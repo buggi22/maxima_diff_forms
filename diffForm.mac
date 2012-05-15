@@ -91,7 +91,7 @@ normalizeTerm(t,n) := block(
     ds: t[2],
     k: length(ds),
 
-    if some(lambda([x], x = ds[1]), rest(ds)) then
+    if k > 1 and some(lambda([x], x = ds[1]), rest(ds)) then
         return([]),
 
     combos: subseqs(makelist(i,i,1,n), k),
@@ -99,18 +99,30 @@ normalizeTerm(t,n) := block(
     matches: sublist_indices(combos, lambda([x], x = sortds)),
     dIndex: if length(matches) = 0 then unknown else matches[1],
 
-    if evenp(length(sublist(rest(ds), lambda([x], x < ds[1])))) then
+    if k = 0 or evenp(length(sublist(rest(ds), lambda([x], x < ds[1])))) then
         return([term, dIndex, sortds])
     else
         return([-term, dIndex, sortds])
 );
 
+diffFormFromExplicit(vars, ex) := block(
+    [r, omega, combos, k, n],
+    n: length(vars),
+    k: length(ex[1][2]),
+    combos: subseqs(makelist(i,i,1,n), k),
+    r: map(lambda([t], normalizeTerm(t, n)), ex),
+    r: sublist(r, lambda([t], length(t) > 0)),
+    r: makelist(apply("+", map(lambda([x], x[1]), sublist(r, lambda([x], x[2] = i)))),
+        i, 1, length(combos)),
+    omega: buildq([vars, r], lambda(vars, r)),
+    [k, omega]
+);
+
 exteriorDerivative(omega, k) := block(
-    [n, explicit, omega_input, newExplicit, newCombos, newOutput],
+    [n, r, explicit, omega_input, newExplicit, newCombos, newOutput],
     explicit: diffFormExplicit(omega, k, true),
     omega_input: part(omega, 1),
     n: length(omega_input),
-    newCombos: subseqs(makelist(i,i,1,n), k+1),
     newExplicit: apply(append, makelist(
         makelist(
             [diff(explicit[j][1], omega_input[i]), append([i], explicit[j][2])],
@@ -118,14 +130,8 @@ exteriorDerivative(omega, k) := block(
         ),
         j, 1, length(explicit)
     )),
-    /* disp(newExplicit), */
-    newExplicit: map(lambda([t], normalizeTerm(t, n)), newExplicit),
-    /* disp(newExplicit), */
-    newExplicit: sublist(newExplicit, lambda([t], length(t) > 0)),
-    /* disp(newExplicit), */
-    newOutput: makelist(apply("+", map(lambda([x], x[1]), sublist(newExplicit, lambda([x], x[2] = i)))),
-        i, 1, length(newCombos)),
-    buildq([omega_input, newOutput], lambda(omega_input, newOutput))
+    r: diffFormFromExplicit(omega_input, newExplicit),
+    r[2]
 );
 
 vectorFieldDiffForm1InR3(f) := f /* R^3 -> R^3 */;
