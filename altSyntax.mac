@@ -1,46 +1,108 @@
+/*
 load("diffForm.mac")$
-infix("##", 101, 101)$
+*/
+infix("##",101,101);
 
-diffForm(vars, expr) := block(
-    [n,k,terms,extractor],
-    n: length(vars),
-    if op(expr) = "##" then
-        terms: [args(expr)]
-    else if op(expr) = "+" then (
-        if every(lambda([x], op(x) = "##"), args(expr)) then
-            terms: map(args, args(expr))
-        else
-            return(unknown)
-    )
-    else
-        return(unknown),
-    /*
-    display(terms),
-    */
-    extractor: buildq(
-        [vars: vars, t: ?gensym(), x: ?gensym(), z: ?gensym()],
-        lambda([t], [
-            t[1],
-            map( lambda([x],
-                block(
-                    [matches: sublist_indices(vars, lambda([z], z = x))],
-                    if length(matches) = 0 then unknown else matches[1]
-                )
-            ), t[2])
-        ] )
-    ),
-    terms: map(extractor, terms),
-    /*
-    display(terms),
-    */
-    diffFormFromExplicit(vars,terms)
+subseqs_helper(prefix, seq, n) := block([next_seq, seqs_with, seqs_without, prefixer],
+    if n < 0 then return([]),
+    if n = 0 then return([prefix]),
+    if length(seq) = 0 then return([]),
+    next_seq: rest(seq),
+    prefixer: lambda([x], append(prefix, x)),
+    seqs_with: subseqs_helper(append(prefix,[seq[1]]), next_seq, n-1),
+    seqs_without: subseqs_helper(prefix, next_seq, n),
+    append(seqs_with, seqs_without)
 );
 
+subseqs(seq, n) := subseqs_helper([], seq, n);
+
+containsDups(vars) ::= buildq([vars, x: ?gensym()],
+    length(vars) > 1 and some(lambda([x], x = vars[1]), rest(vars))
+);
+
+firstIndexOf(item, l) ::= buildq([item, l, x: ?gensym()],
+    block([m: sublist_indices(l, lambda([x], x = item))],
+        if length(m) = 0 then unknown else m[1]
+    )
+);
+
+normalizeTerm(t, n) ::= block(
+    [term, ds, k, combos, matches, sortds, dIndex, evenSwaps],
+    term: t[1],
+    ds: t[2],
+    k: length(ds),
+
+    if containsDups(ds) then
+        return([]),
+
+    combos: buildq([i: ?gensym()],
+        subseqs(makelist(i,i,1,n), k)),
+    sortds: sort(ds),
+    matches: buildq([x: ?gensym()],
+        sublist_indices(combos, lambda([x], x = sortds))
+    ),
+    dIndex: buildq([x: ?gensym()],
+        if length(matches) = 0 then unknown else matches[1]
+    ),
+
+    evenSwaps: buildq([x: ?gensym()],
+        k = 0 or evenp(length(sublist(rest(ds), lambda([x], x < ds[1]))))
+    ),
+
+    if evenSwaps then
+        return([term, dIndex, sortds])
+    else
+        return([-term, dIndex, sortds])
+);
+
+diffFormFromExplicit(vars, expr) ::= block(
+    [r1, r2, r3, omega, combos, k, n],
+    n: length(vars),
+    k: length(expr[1][2]),
+    combos: buildq([i: ?gensym()],
+        subseqs(makelist(i,i,1,n), k)),
+    r1: buildq([t: ?gensym()],
+        map(lambda[t], normalizeTerm(t,n), expr)),
+    r2: buildq([t: ?gensym()],
+        sublist(r1, lambda([t], normalizeTerm(t,n)), expr)),
+    r3: buildq([combos, i: ?gensym(), x: ?gensym(), y: ?gensym()],
+        makelist(apply("+", map(lambda([x], x[1]), sublist(r2, lambda([y], y[2] = i)))),
+            i, 1, length(combos))),
+    omega: buildq([vars, r3], lambda(vars, r3)),
+    [k, omega]
+);
+
+diffForm(vars, expr) ::= block(
+   [indexOfVar, exprAsList, terms],
+   indexOfVar: buildq([vars, y: ?gensym(), z: ?gensym()],
+       lambda([y],
+           block([matches: sublist_indices(vars, lambda([z], z = y))],
+               if length(matches) = 0 then unknown else matches[1]
+           )
+       )
+   ),
+   exprAsList:
+       if op(expr) = "##" then [args(expr)]
+       else map(args, args(expr)),
+   terms: buildq([exprAsList, indexOfVar, t: ?gensym()],
+       map(lambda([t], [t[1], map(indexOfVar, t[2])]), exprAsList)
+   ),
+   buildq([vars,terms], diffFormFromExplicit(vars,terms))
+);
+/*
+*/
 tests: [
     diffForm([x,y,z], 2*x ## []),
     diffForm([x,y,z], 2*x ## [z]),
     diffForm([x,y,z], 2*x ## [x,z]),
     diffForm([x,y,z], 30*x*z^2 ## [x,y,z] + y ## [x,y,z]),
     diffForm([x,y,z], 30*x*z^2 ## [x,y] + y ## [y,z] + z ## [x,z] + z^2 ## [z,y]),
-    diffForm([x,y,z,w], 2*x ## [x,y] + 2*z ## [z,w])
+    diffForm([x,y,z,w], 2*x ## [x,y] + 2*z ## [z,w]),
+    diffForm([x,y,z], [[2*x, [x,y]], [y, [y,z]]]),
+    diffForm([x,y,z], 2*x ## [x,y] + y ## [y,z])
 ];
+/*
+macroexpand(
+    diffForm([x,y,z], 2*x ## [z])
+);
+*/
