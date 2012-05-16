@@ -1,0 +1,44 @@
+infix("##", 101, 101);
+
+parse(vars, expr) ::= [vars, if op(expr) = "##" then [args(expr)] else map(args, args(expr))];
+
+firstIndexOf(a, l) ::= buildq([a, l, x: ?gensym()],
+    block([m: sublist_indices(l, lambda([x], x = a))],
+        if length(m) = 0 then unknown else m[1]
+    )
+);
+
+tagWithVarIndices(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], x: ?gensym(), y: ?gensym()],
+    block([modExpr],
+        modExpr: map(lambda([x], [x[1], map(lambda([y], firstIndexOf(y, vars)), x[2])]), expr),
+        [vars, modExpr]
+    )
+);
+
+normalizeTerms(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], x: ?gensym(), y: ?gensym()],
+    block([modExpr],
+        modExpr: expr, /* TODO */
+        [vars, modExpr]
+    )
+);
+
+combineTerms(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], x: ?gensym(), y: ?gensym()],
+    block([modExpr],
+        modExpr: expr, /* TODO */
+        [vars, modExpr]
+    )
+);
+
+combineTerms(normalizeTerms(tagWithVarIndices(parse([x,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]))));
+
+/*
+parse([x,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+
+parse([vars,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+parse([vars,y,z], x*z*y^2 ## [vars,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+parse([x,y,z], x*z*y^2 ## [vars,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+
+parse([expr,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+parse([expr,y,z], x*z*y^2 ## [expr,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+parse([x,y,z], x*z*y^2 ## [expr,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+*/
