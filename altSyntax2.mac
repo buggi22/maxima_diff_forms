@@ -2,43 +2,96 @@ infix("##", 101, 101);
 
 parse(vars, expr) ::= [vars, if op(expr) = "##" then [args(expr)] else map(args, args(expr))];
 
-firstIndexOf(a, l) ::= buildq([a, l, x: ?gensym()],
-    block([m: sublist_indices(l, lambda([x], x = a))],
-        if length(m) = 0 then unknown else m[1]
-    )
+firstIndexOf(a, l) ::= buildq([a, l, x: ?gensym(), m: ?gensym()],
+   block([m: sublist_indices(l, lambda([x], x = a))],
+       if length(m) = 0 then unknown else m[1]
+   )
 );
 
-tagWithVarIndices(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], x: ?gensym(), y: ?gensym()],
-    block([modExpr],
-        modExpr: map(lambda([x], [x[1], map(lambda([y], firstIndexOf(y, vars)), x[2])]), expr),
-        [vars, modExpr]
-    )
+tagWithVarIndices(parsed) ::= buildq([vars: parsed[1], expr:
+parsed[2], x: ?gensym(), y: ?gensym(), modExpr: ?gensym(), k: ?gensym(), n: ?gensym()],
+   block([modExpr, k, n],
+       modExpr: map(lambda([x], [x[1], map(lambda([y], firstIndexOf(y, vars)), x[2])]), expr),
+       k: length(expr[1][2]),
+       n: length(vars),
+       [vars, modExpr, k, n]
+   )
 );
 
-normalizeTerms(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], x: ?gensym(), y: ?gensym()],
-    block([modExpr],
-        modExpr: expr, /* TODO */
-        [vars, modExpr]
-    )
+normalizeSingleTerm(t) ::= buildq([term: t[1], diffs: t[2], sortDiffs: sort(t[2]), k: length(t[2]), x: ?gensym()],
+   if k > 0 and some(lambda([x], x = diffs[1]), rest(diffs)) then
+       [0, sortDiffs]
+   else if k = 0 or evenp(length(sublist(rest(diffs), lambda([x], x < diffs[1])))) then
+       [term, sortDiffs]
+   else
+       [-term, sortDiffs]
 );
 
-combineTerms(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], x: ?gensym(), y: ?gensym()],
-    block([modExpr],
-        modExpr: expr, /* TODO */
-        [vars, modExpr]
-    )
+normalizeTerms(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], k: parsed[3], n: parsed[4], modExpr: ?gensym()],
+   block([modExpr],
+       modExpr: map(normalizeSingleTerm, expr),
+       [vars, modExpr, k, n]
+   )
 );
 
-combineTerms(normalizeTerms(tagWithVarIndices(parse([x,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]))));
+subseqs_helper(prefix, seq, n) := block([next_seq, seqs_with, seqs_without, prefixer],
+   if n < 0 then return([]),
+   if n = 0 then return([prefix]),
+   if length(seq) = 0 then return([]),
+   next_seq: rest(seq),
+   prefixer: lambda([x], append(prefix, x)),
+   seqs_with: subseqs_helper(append(prefix,[seq[1]]), next_seq, n-1),
+   seqs_without: subseqs_helper(prefix, next_seq, n),
+   append(seqs_with, seqs_without)
+);
 
-/*
-parse([x,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+subseqs(seq, n) := subseqs_helper([], seq, n);
 
-parse([vars,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
-parse([vars,y,z], x*z*y^2 ## [vars,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
-parse([x,y,z], x*z*y^2 ## [vars,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+comboMaker(n, k) ::= buildq([n, k, x: ?gensym()],
+   subseqs(makelist(x,x,1,n), k)
+);
 
-parse([expr,y,z], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
-parse([expr,y,z], x*z*y^2 ## [expr,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
-parse([x,y,z], x*z*y^2 ## [expr,y] + x^2*y ## [x,z] + xz ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
-*/
+indexOfCombo(combo, n, k) ::= buildq([combo, n, k, combos: ?gensym()],
+   block([combos: comboMaker(n,k)],
+       firstIndexOf(combo, combos)
+   )
+);
+
+tagVarListsWithComboIndices(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], k: parsed[3], n: parsed[4], x: ?gensym(), modExpr: ?gensym()],
+   block([modExpr],
+       modExpr: map(
+           lambda([x], [x[1], x[2], indexOfCombo(x[2], n, k)]),
+           expr),
+       [vars, modExpr, k, n]
+   )
+);
+
+combineTerms(parsed) ::= buildq([vars: parsed[1], expr: parsed[2], k: parsed[3], n: parsed[4], x: ?gensym(), y: ?gensym(), z: ?gensym(), modExpr: ?gensym()],
+   block([modExpr, numCombos],
+       numCombos: n! / (k! * (n-k)!),
+       modExpr: makelist(
+           apply("+",
+               map(lambda([z], z[1]), sublist(expr, lambda([y], y[3] = x)))),
+           x, 1, numCombos ),
+       [vars, modExpr, expr, k, n]
+   )
+);
+
+finalWrapper(parsed) ::= buildq([parsed, input: ?gensym(), output: ?gensym(), longExpr: ?gensym(), k: ?gensym(), n: ?gensym()],
+   block([input: parsed[1], output: parsed[2], longExpr: parsed[3], k: parsed[4], n: parsed[5]],
+       /*[buildq([input, output], lambda(input, output)), longExpr, k, n]*/
+       [k, buildq([input, output], lambda(input, output))]
+   )
+);
+
+diffForm(vars,expr) ::= buildq([vars,expr],
+   finalWrapper(combineTerms(tagVarListsWithComboIndices(normalizeTerms(tagWithVarIndices(parse(vars,expr))))))
+);
+
+diffForm([x,y,z,w], x*z*y^2 ## [x,y] + x^2*y ## [x,z] + x*z ## [y,x] + z^2 ## [y,z] + x^3*y^3 ## [y,y]);
+
+diffForm([expr,vars,modExpr,parsed], expr*modExpr*vars^2 ## [expr,vars] + expr^2*vars ## [expr,modExpr] + expr*modExpr ## [vars,expr] + modExpr^2 ## [vars,modExpr] + expr^3*vars^3 ## [vars,vars]);
+
+diffForm([x,t,k,n], x*k*t^2 ## [x,t] + x^2*t ## [x,k] + x*k ## [t,x] + k^2 ## [t,k] + x^3*t^3 ## [t,t]);
+
+
